@@ -1,6 +1,19 @@
 defmodule JanusTest do
   use ExUnit.Case
 
+  setup_all do
+    {:ok, _pid} =
+      Janus.Socket.start_link(
+        config: %Janus.Config{
+          binary_path: "/opt/janus/bin/janus",
+          client_sock: "/home/vagrant/elixir.sock",
+          janus_sock: "/home/vagrant/janus.sock"
+        }
+      )
+
+    :ok
+  end
+
   @tag real_janus: true
   test "create and destroy a session" do
     assert %{
