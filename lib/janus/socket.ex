@@ -1,6 +1,7 @@
 defmodule Janus.Socket do
   @moduledoc false
   use GenServer
+  require Logger
   defstruct [:socket, :janus_sock, awaiting: %{}]
 
   @type t :: %__MODULE__{
@@ -42,15 +43,24 @@ defmodule Janus.Socket do
         {:udp, socket, {:local, janus_sock}, 0, msg},
         %__MODULE__{socket: socket, janus_sock: janus_sock, awaiting: awaiting} = state
       ) do
-    %{"transaction" => transaction} = msg = Jason.decode!(msg)
+    case Jason.decode!(msg) do
+      %{"janus" => "timeout", "session_id" => session_id} ->
+        Logger.debug("session #{session_id} timeout")
+        {:noreply, state}
 
-    {maybe_from, awaiting} = Map.pop(awaiting, transaction)
+      %{"janus" => "detached", "sender" => handle_id, "session_id" => session_id} ->
+        Logger.debug("detached handle #{handle_id} from session #{session_id}")
+        {:noreply, state}
 
-    if maybe_from do
-      GenServer.reply(maybe_from, msg)
+      %{"transaction" => transaction} = msg ->
+        {maybe_from, awaiting} = Map.pop(awaiting, transaction)
+
+        if maybe_from do
+          GenServer.reply(maybe_from, msg)
+        end
+
+        {:noreply, %{state | awaiting: awaiting}}
     end
-
-    {:noreply, %{state | awaiting: awaiting}}
   end
 
   @spec _transaction :: String.t()
