@@ -2,12 +2,13 @@ defmodule Janus.Socket do
   @moduledoc false
   use GenServer
   require Logger
-  defstruct [:socket, :janus_sock, awaiting: %{}]
+  defstruct [:socket, :janus_sock, :client_sock, awaiting: %{}]
 
   @type t :: %__MODULE__{
           # TODO
           socket: port,
           janus_sock: Path.t(),
+          client_sock: Path.t(),
           # TODO ets table?
           awaiting: %{(transaction :: String.t()) => GenServer.from()}
         }
@@ -23,7 +24,7 @@ defmodule Janus.Socket do
     File.rm(client_sock)
     # TODO fix recbuf hack
     {:ok, socket} = :gen_udp.open(0, [:binary, ip: {:local, client_sock}, recbuf: 999_999])
-    {:ok, %__MODULE__{socket: socket, janus_sock: janus_sock}}
+    {:ok, %__MODULE__{socket: socket, janus_sock: janus_sock, client_sock: client_sock}}
   end
 
   @doc false
@@ -61,6 +62,13 @@ defmodule Janus.Socket do
 
         {:noreply, %{state | awaiting: awaiting}}
     end
+  end
+
+  @doc false
+  def terminate(_reason, %__MODULE__{socket: socket, client_sock: client_sock} = state) do
+    File.rm(client_sock)
+    :ok = :gen_udp.close(socket)
+    :ok
   end
 
   @spec _transaction :: String.t()
