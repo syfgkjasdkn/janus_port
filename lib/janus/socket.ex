@@ -65,7 +65,7 @@ defmodule Janus.Socket do
   end
 
   @doc false
-  def terminate(_reason, %__MODULE__{socket: socket, client_sock: client_sock} = state) do
+  def terminate(_reason, %__MODULE__{socket: socket, client_sock: client_sock}) do
     File.rm(client_sock)
     :ok = :gen_udp.close(socket)
     :ok
