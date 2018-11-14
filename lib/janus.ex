@@ -30,7 +30,7 @@ defmodule Janus do
   end
 
   # TODO simplify
-  @spec send_trickle_candidate(session_id, handle_id, [map] | map | nil) :: map | no_return
+  @spec send_trickle_candidate(session_id, handle_id, [map] | map) :: :ok
   def send_trickle_candidate(session_id, handle_id, maybe_candidates) do
     message = %{
       "janus" => "trickle",
@@ -40,14 +40,11 @@ defmodule Janus do
 
     message =
       case maybe_candidates do
-        candidates when is_list(candidates) ->
-          Map.put(message, "candidates", candidates)
-
-        candidate ->
-          Map.put(message, "candidate", candidate)
+        candidates when is_list(candidates) -> Map.put(message, "candidates", candidates)
+        candidate -> Map.put(message, "candidate", candidate)
       end
 
-    _send(message)
+    _send_async(message)
   end
 
   @spec send_message(session_id, handle_id, map) :: map | no_return
@@ -63,8 +60,13 @@ defmodule Janus do
 
   @spec send_keepalive(session_id) :: :ok
   def send_keepalive(session_id) do
-    # TODO
-    GenServer.cast(Janus.Socket, {:send, %{"janus" => "keepalive", "session_id" => session_id}})
+    _send_async(%{"janus" => "keepalive", "session_id" => session_id})
+  end
+
+  @compile {:inline, _send_async: 1}
+  @spec _send_async(map) :: :ok
+  defp _send_async(message) do
+    GenServer.cast(Janus.Socket, {:send, message})
   end
 
   @compile {:inline, _send: 1}
