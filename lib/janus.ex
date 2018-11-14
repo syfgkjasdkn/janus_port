@@ -1,6 +1,8 @@
 defmodule Janus do
   @moduledoc File.read!("README.md")
 
+  @registry Janus.Session.Registry
+
   @type session_id :: integer
   @type handle_id :: integer
 
@@ -61,6 +63,12 @@ defmodule Janus do
   @spec send_keepalive(session_id) :: :ok
   def send_keepalive(session_id) do
     _send_async(%{"janus" => "keepalive", "session_id" => session_id})
+  end
+
+  # TODO add some kind of opts maybe
+  @spec subscribe(session_id) :: {:ok, pid}
+  def subscribe(session_id) do
+    Registry.register(@registry, session_id, [])
   end
 
   @compile {:inline, _send_async: 1}

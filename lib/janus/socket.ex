@@ -4,6 +4,8 @@ defmodule Janus.Socket do
   require Logger
   defstruct [:socket, :janus_sock, :client_sock, awaiting: %{}]
 
+  @registry Janus.Session.Registry
+
   @type t :: %__MODULE__{
           # TODO
           socket: port,
@@ -24,6 +26,8 @@ defmodule Janus.Socket do
     File.rm(client_sock)
     # TODO fix recbuf hack
     {:ok, socket} = :gen_udp.open(0, [:binary, ip: {:local, client_sock}, recbuf: 999_999])
+    # TODO
+    {:ok, _} = Registry.start_link(keys: :duplicate, name: @registry)
     {:ok, %__MODULE__{socket: socket, janus_sock: janus_sock, client_sock: client_sock}}
   end
 
@@ -69,14 +73,16 @@ defmodule Janus.Socket do
         Logger.debug("got ack")
         {:noreply, state}
 
-      %{"janus" => janus} = msg when janus in ["media", "webrtcup", "slowlink", "hangup"] ->
-        Logger.debug("got event message:\n\n#{inspect(msg)}")
-        {:noreply, state}
-
       %{"transaction" => transaction} = msg ->
         {maybe_from, awaiting} = Map.pop(awaiting, transaction)
         if maybe_from, do: GenServer.reply(maybe_from, msg)
         {:noreply, %{state | awaiting: awaiting}}
+
+      %{"janus" => janus, "session_id" => session_id} = msg
+      when janus in ["media", "webrtcup", "slowlink", "hangup", "event"] ->
+        Logger.debug("got event message:\n\n#{inspect(msg)}")
+        _broadcast(session_id, msg)
+        {:noreply, state}
     end
   end
 
@@ -97,5 +103,14 @@ defmodule Janus.Socket do
   @spec _send(map, t) :: :ok
   defp _send(msg, %__MODULE__{socket: socket, janus_sock: janus_sock}) do
     :gen_udp.send(socket, {:local, janus_sock}, 0, Jason.encode_to_iodata!(msg))
+  end
+
+  @spec _broadcast(Janus.session_id(), map) :: :ok
+  defp _broadcast(session_id, message) do
+    Registry.dispatch(@registry, session_id, fn entries ->
+      Enum.each(entries, fn {pid, _} ->
+        send(pid, message)
+      end)
+    end)
   end
 end
