@@ -59,10 +59,37 @@ defmodule JanusTest do
              "transaction" => _transaction
            } = Janus.create_session()
 
+    # TODO
+    assert :ok = Janus.send_keepalive(session_id)
+  end
+
+  @tag real_janus: true
+  test "send echotest plugin message" do
     assert %{
-             "janus" => "ack",
+             "data" => %{"id" => session_id},
+             "janus" => "success",
+             "transaction" => _transaction
+           } = Janus.create_session()
+
+    assert %{
+             "data" => %{"id" => handle_id},
+             "janus" => "success",
              "session_id" => ^session_id,
              "transaction" => _transaction
-           } = Janus.send_keepalive(session_id)
+           } = Janus.attach(session_id, "janus.plugin.echotest")
+
+    assert %{
+             "janus" => "event",
+             "plugindata" => %{
+               "data" => %{"echotest" => "event", "result" => "ok"},
+               "plugin" => "janus.plugin.echotest"
+             },
+             "sender" => ^handle_id,
+             "session_id" => ^session_id,
+             "transaction" => _transaction
+           } =
+             Janus.send_message(session_id, handle_id, %{
+               "body" => %{"audio" => true, "video" => true}
+             })
   end
 end

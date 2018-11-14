@@ -19,14 +19,6 @@ defmodule Janus do
     _send(%{"janus" => "destroy", "session_id" => session_id})
   end
 
-  @doc """
-      
-      iex> session_id = 123456789
-      iex> %{"data" => %{"id" => handle_id}, "janus" => "success"} = Janus.attach(session_id, "janus.plugin.echotest")
-      iex> handle_id
-      127635
-
-  """
   @spec attach(session_id, String.t()) :: map | no_return
   def attach(session_id, plugin) do
     _send(%{"janus" => "attach", "session_id" => session_id, "plugin" => plugin})
@@ -37,14 +29,25 @@ defmodule Janus do
     _send(%{"janus" => "detach", "session_id" => session_id, "handle_id" => handle_id})
   end
 
-  @spec send_trickle_candidate(session_id, handle_id, map) :: map | no_return
-  def send_trickle_candidate(session_id, handle_id, candidate) do
-    _send(%{
+  # TODO simplify
+  @spec send_trickle_candidate(session_id, handle_id, [map] | map | nil) :: map | no_return
+  def send_trickle_candidate(session_id, handle_id, maybe_candidates) do
+    message = %{
       "janus" => "trickle",
       "session_id" => session_id,
-      "handle_id" => handle_id,
-      "candidate" => candidate
-    })
+      "handle_id" => handle_id
+    }
+
+    message =
+      case maybe_candidates do
+        candidates when is_list(candidates) ->
+          Map.put(message, "candidates", candidates)
+
+        candidate ->
+          Map.put(message, "candidate", candidate)
+      end
+
+    _send(message)
   end
 
   @spec send_message(session_id, handle_id, map) :: map | no_return
@@ -58,12 +61,14 @@ defmodule Janus do
     |> _send()
   end
 
-  @spec send_keepalive(session_id) :: map | no_return
+  @spec send_keepalive(session_id) :: :ok
   def send_keepalive(session_id) do
-    _send(%{"janus" => "keepalive", "session_id" => session_id})
+    # TODO
+    GenServer.cast(Janus.Socket, {:send, %{"janus" => "keepalive", "session_id" => session_id}})
   end
 
   @compile {:inline, _send: 1}
+  @spec _send(map) :: map | no_return
   defp _send(message) do
     GenServer.call(Janus.Socket, {:send, message})
   end

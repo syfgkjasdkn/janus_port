@@ -40,6 +40,18 @@ defmodule Janus.Socket do
   end
 
   @doc false
+  def handle_cast({:send, msg}, state) do
+    transaction = _transaction()
+
+    :ok =
+      msg
+      |> Map.put("transaction", transaction)
+      |> _send(state)
+
+    {:noreply, state}
+  end
+
+  @doc false
   def handle_info(
         {:udp, socket, {:local, janus_sock}, 0, msg},
         %__MODULE__{socket: socket, janus_sock: janus_sock, awaiting: awaiting} = state
@@ -53,13 +65,17 @@ defmodule Janus.Socket do
         Logger.debug("detached handle #{handle_id} from session #{session_id}")
         {:noreply, state}
 
+      %{"janus" => "ack"} ->
+        Logger.debug("got ack")
+        {:noreply, state}
+
+      %{"janus" => janus} = msg when janus in ["media", "webrtcup", "slowlink", "hangup"] ->
+        Logger.debug("got event message:\n\n#{inspect(msg)}")
+        {:noreply, state}
+
       %{"transaction" => transaction} = msg ->
         {maybe_from, awaiting} = Map.pop(awaiting, transaction)
-
-        if maybe_from do
-          GenServer.reply(maybe_from, msg)
-        end
-
+        if maybe_from, do: GenServer.reply(maybe_from, msg)
         {:noreply, %{state | awaiting: awaiting}}
     end
   end
