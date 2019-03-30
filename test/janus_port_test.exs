@@ -5,16 +5,14 @@ defmodule JanusTest do
     {:ok, _pid} =
       Janus.Socket.start_link(
         config: %Janus.Config{
-          binary_path: "/opt/janus/bin/janus",
-          client_sock: "/home/vagrant/elixir.sock",
-          janus_sock: "/home/vagrant/janus.sock"
+          client_sock: "/opt/janus/elixir.sock",
+          janus_sock: "/opt/janus/janus.sock"
         }
       )
 
     :ok
   end
 
-  @tag real_janus: true
   test "create and destroy a session" do
     assert %{
              "data" => %{"id" => session_id},
@@ -29,7 +27,6 @@ defmodule JanusTest do
            } = Janus.destroy_session(session_id)
   end
 
-  @tag real_janus: true
   test "attach and detach plugin to a session" do
     assert %{
              "data" => %{"id" => session_id},
@@ -51,7 +48,6 @@ defmodule JanusTest do
            } = Janus.detach(session_id, handle_id)
   end
 
-  @tag real_janus: true
   test "send keepalive for a session" do
     assert %{
              "data" => %{"id" => session_id},
@@ -77,7 +73,6 @@ defmodule JanusTest do
     "sdpMLineIndex" => 1
   }
 
-  @tag real_janus: true
   test "send echotest plugin message and trickle candidate" do
     assert %{
              "data" => %{"id" => session_id},
