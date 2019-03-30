@@ -1,9 +1,8 @@
 defmodule Janus.Config do
   @moduledoc false
-  defstruct [:binary_path, :client_sock, :janus_sock]
+  defstruct [:client_sock, :janus_sock]
 
   @type t :: %__MODULE__{
-          binary_path: Path.t(),
           client_sock: Path.t(),
           janus_sock: Path.t()
         }
@@ -11,7 +10,6 @@ defmodule Janus.Config do
   @spec build! :: t | no_return
   def build! do
     %__MODULE__{
-      binary_path: get_env!(:binary_path),
       client_sock: get_env!(:client_sock),
       janus_sock: get_env!(:janus_sock)
     }
